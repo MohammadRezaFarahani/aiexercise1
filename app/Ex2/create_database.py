@@ -1,135 +1,71 @@
 import sqlite3
+from pathlib import Path
 
-# Connect to SQLite database (It will create the file if it doesn't exist)
-conn = sqlite3.connect('bank_database.db')
+
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "database" / "bank_database.db"
+
+
+# Reset database
+if DB_PATH.exists():
+    DB_PATH.unlink()
+
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
-# Enable Foreign Key support
 cursor.execute("PRAGMA foreign_keys = ON;")
 
 # 1. Create tables
 cursor.execute("""
-               CREATE TABLE IF NOT EXISTS Customer
-               (
-                   CustomerID
-                   INTEGER
-                   PRIMARY
-                   KEY,
-                   NationalID
-                   TEXT
-                   NOT
-                   NULL
-                   UNIQUE,
-                   FirstName
-                   TEXT
-                   NOT
-                   NULL,
-                   LastName
-                   TEXT
-                   NOT
-                   NULL,
-                   BirthDate
-                   TEXT,
-                   PhoneNumber
-                   TEXT,
-                   CreatedAt
-                   TEXT
-               );
-               """)
+CREATE TABLE IF NOT EXISTS Customer (
+    CustomerID INTEGER PRIMARY KEY,
+    NationalID TEXT NOT NULL UNIQUE,
+    FirstName TEXT NOT NULL,
+    LastName TEXT NOT NULL,
+    BirthDate TEXT,
+    PhoneNumber TEXT,
+    CreatedAt TEXT
+);
+""")
 
 cursor.execute("""
-               CREATE TABLE IF NOT EXISTS Account
-               (
-                   AccountID
-                   INTEGER
-                   PRIMARY
-                   KEY,
-                   CustomerID
-                   INTEGER,
-                   AccountNumber
-                   TEXT
-                   NOT
-                   NULL
-                   UNIQUE,
-                   AccountType
-                   TEXT,
-                   Balance
-                   REAL,
-                   Status
-                   TEXT,
-                   CreatedAt
-                   TEXT,
-                   FOREIGN
-                   KEY
-               (
-                   CustomerID
-               ) REFERENCES Customer
-               (
-                   CustomerID
-               )
-                   );
-               """)
+CREATE TABLE IF NOT EXISTS Account (
+    AccountID INTEGER PRIMARY KEY,
+    CustomerID INTEGER,
+    AccountNumber TEXT NOT NULL UNIQUE,
+    AccountType TEXT,
+    Balance REAL,
+    Status TEXT,
+    CreatedAt TEXT,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID)
+);
+""")
 
 cursor.execute("""
-               CREATE TABLE IF NOT EXISTS "Transaction"
-               (
-                   TransactionID
-                   INTEGER
-                   PRIMARY
-                   KEY,
-                   AccountID
-                   INTEGER,
-                   TransactionType
-                   TEXT,
-                   Amount
-                   REAL,
-                   TransactionDate
-                   TEXT,
-                   Description
-                   TEXT,
-                   FOREIGN
-                   KEY
-               (
-                   AccountID
-               ) REFERENCES Account
-               (
-                   AccountID
-               )
-                   );
-               """)
+CREATE TABLE IF NOT EXISTS "Transaction" (
+    TransactionID INTEGER PRIMARY KEY,
+    AccountID INTEGER,
+    TransactionType TEXT,
+    Amount REAL,
+    TransactionDate TEXT,
+    Description TEXT,
+    FOREIGN KEY (AccountID) REFERENCES Account(AccountID)
+);
+""")
 
 cursor.execute("""
-               CREATE TABLE IF NOT EXISTS Transfer
-               (
-                   TransferID
-                   INTEGER
-                   PRIMARY
-                   KEY,
-                   FromAccountID
-                   INTEGER,
-                   ToAccountID
-                   INTEGER,
-                   Amount
-                   REAL,
-                   TransferDate
-                   TEXT,
-                   FOREIGN
-                   KEY
-               (
-                   FromAccountID
-               ) REFERENCES Account
-               (
-                   AccountID
-               ),
-                   FOREIGN KEY
-               (
-                   ToAccountID
-               ) REFERENCES Account
-               (
-                   AccountID
-               )
-                   );
-               """)
+CREATE TABLE IF NOT EXISTS Transfer (
+    TransferID INTEGER PRIMARY KEY,
+    FromAccountID INTEGER,
+    ToAccountID INTEGER,
+    Amount REAL,
+    TransferDate TEXT,
+    FOREIGN KEY (FromAccountID) REFERENCES Account(AccountID),
+    FOREIGN KEY (ToAccountID) REFERENCES Account(AccountID)
+);
+""")
 
 # 2. Insert Customer Data
 customers = [
@@ -213,6 +149,8 @@ transfers = [
 ]
 cursor.executemany("INSERT OR IGNORE INTO Transfer VALUES (?,?,?,?,?)", transfers)
 
+# Save (commit) the changes and close the connection
 conn.commit()
 conn.close()
-print("Database created and data inserted successfully!")
+
+print(f"Database created successfully: {DB_PATH}")
